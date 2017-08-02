@@ -19,7 +19,7 @@ https://github.com/huangnauh
 .image upone/mesos-logo.png _ 800
 .caption Image credit: [[http://mesos.apache.org/][mesos.apache.org]]
 
-官方称之为分布式系统内核, 它把数据中心的 CPU、内存、存储等抽象成一个资源池
+官方称之为分布式系统内核, 它把数据中心的 CPU、内存、磁盘等抽象成一个资源池
 
 * Mesos 调度
 
@@ -195,9 +195,9 @@ upone 通过 [[/api/v1/scheduler][/api/v1/scheduler]] 和 mesos master 完成交
 
 [[https://github.com/hashicorp/raft][hashicorp/raft]]
 
-- 强领导者：日志条目只从发送给其他的服务器
 - 领导选举: 心跳机制来触发选举, term 充当逻辑时钟的作用
 - 日志复制: 领导者把一条指令(能被复制状态机执行)附加到日志中，发起附加条目 RPC 请求给其他角色
+- 强领导者：日志条目只从 leader 发送给其他的服务器
 
 * raft 领导选举
 
@@ -243,6 +243,20 @@ upone 通过 [[/api/v1/scheduler][/api/v1/scheduler]] 和 mesos master 完成交
 
 - store 组件, 已支持 [[https://github.com/hashicorp/raft-boltdb][hashicorp/raft-boltdb]], 数据库
 - drive 组件, upone 可以选择 master-agent 模式, 不依赖于 mesos 独立使用
+
+
+* 告警
+
+各个应用可以在创建任务的时候指定自己的 slack channel
+
+当任务出现异常时, 发送实时通知
+
+.image upone/slack.png _ 700
+
+
+* 告警
+
+.image upone/alarm.png _ 700
 
 
 * 遇到的问题
