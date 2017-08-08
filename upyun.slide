@@ -1,0 +1,151 @@
+容器调度框架 Upone 介绍
+10 Aug 2017
+
+黄励博
+平台开发部
+
+* Upone 使用介绍
+
+* http 服务
+
+.code -edit upyun/http.go /START OMIT/,/END OMIT/
+
+.play upyun/http.go /fmt.Printf/
+
+[[http://10.0.0.193:3100/ui][Upone]]
+
+
+* Let's kill it
+
+.image upyun/kill_it.gif _ 800
+
+
+* Kill it
+
+.code -edit upyun/kill_http.go /START OMIT/,/END OMIT/
+.play upyun/kill_http.go /fmt.Println/,/fmt.Println/
+[[http://10.0.0.193:3100/ui][Upone]]
+
+
+* Test http
+
+.code -edit upyun/http.go /START OMIT/,/END OMIT/
+
+.play upyun/http.go /fmt.Printf/
+
+
+* tcp 服务
+
+.code -edit upyun/tcp.go /START OMIT/,/END OMIT/
+.play upyun/tcp.go /fmt.Println/
+
+[[http://10.0.0.193:3100/ui][Upone]]
+
+
+* Let's kill it again
+
+.image upyun/kill_it.gif _ 800
+
+
+* Kill it
+
+.code -edit upyun/kill_tcp.go /START OMIT/,/END OMIT/
+.play upyun/tcp.go /fmt.Println/,/fmt.Println/
+[[http://10.0.0.193:3100/ui][Upone]]
+
+* Test tcp
+
+.code -edit upyun/tcp.go /START OMIT/,/END OMIT/
+.play upyun/tcp.go /fmt.Println/
+
+
+* 负载均衡介绍
+
+slardar 代理
+
+    # 应用开发的 docker 集群代理
+    # @see http://gitlab.widget-inc.com/consumers/upone-cli/wikis/zones#dev
+    upstream upone.dev {
+        server 192.168.13.182:8089 max_fails=2  fail_timeout=30s;
+        server 192.168.13.183:8089 max_fails=2  fail_timeout=30s;
+        server 192.168.13.184:8089 max_fails=2  fail_timeout=30s;
+        keepalive 60;
+    }
+
+* http 代理服务
+
+.code -edit upyun/http_slardar.go /START OMIT/,/END OMIT/
+
+.play upyun/http_slardar.go /fmt.Printf/
+
+[[http://10.0.0.193:3100/ui][Upone]]
+
+[[http://10.0.0.193:1995/status][Slardar]]
+
+
+* tcp 代理服务
+
+.code -edit upyun/tcp_slardar.go /START OMIT/,/END OMIT/
+.play upyun/tcp_slardar.go /fmt.Println/
+
+[[http://10.0.0.193:3100/ui][Upone]]
+
+[[http://10.0.0.193:1995/status][Slardar]]
+
+
+* 告警
+
+各个服务可以在创建任务的时候指定自己的 slack channel
+
+当任务出现异常时, 发送实时通知
+
+.image upone/slack.png _ 700
+
+
+* 告警
+
+.image upone/alarm.png _ 700
+
+
+* Upone 原理简介
+
+
+* Mesos
+.image upone/mesos-logo.png _ 800
+.caption Image credit: [[http://mesos.apache.org/][mesos.apache.org]]
+
+官方称之为分布式系统内核, 它把数据中心的 CPU、内存、磁盘等抽象成一个资源池
+
+[[http://10.0.0.193:5050][Mesos]]
+
+
+* 处理流程
+
+.image upone/mesos-seq-diagram.png _ 800
+.caption Image credit: [[https://dcos.io/docs/1.7/overview/architecture/][dcos architecture]]
+
+
+* Raft
+
+通过 *Raft* 分布式一致性协议实现高可用
+.image upone/raft-leader.png
+[[https://raft.github.io/raftscope/index.html][RaftScope]]
+
+
+* 配置与服务发现
+
+.image upone/consul.png _ 600
+
+- upone 动态加载属性
+- 注册服务
+- 应用配置统一管理
+
+[[http://10.0.5.108:8500][Consul]]
+
+* Upone 定时任务
+
+.image upone/crontab.jpg _ 600
+
+[[http://10.0.0.193:3100/ui][Upone]]
+[[http://10.0.0.193:5050][Mesos]]
+
