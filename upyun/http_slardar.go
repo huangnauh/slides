@@ -9,9 +9,10 @@ import (
 
 func main() {
 	// START OMIT
+	client := &http.Client{}
 	req, _ := http.NewRequest("GET", "http://10.0.0.193:3130", nil)
-	req.Header.Add("Host", "dev.nginx.org")
-	res, err := http.DefaultClient.Do(req)
+	req.Host = "dev.nginx.org"
+	res, err := client.Do(req)
 	if err != nil {
 		log.Fatal(err)
 	}

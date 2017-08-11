@@ -17,7 +17,21 @@
 
 * Let's kill it
 
+测试 upone 的失败恢复功能
 .image upyun/kill_it.gif _ 800
+
+
+* 准备工作
+
+* 告警
+
+各个服务可以在创建任务的时候指定自己的 slack channel
+
+当任务出现异常时, 发送实时通知
+
+.image upone/slack.png _ 700
+
+[[https://upyun-alert.slack.com/messages/C6MGAMK3Q/][slack]]
 
 
 * Kill it
@@ -25,6 +39,7 @@
 .code -edit upyun/kill_http.go /START OMIT/,/END OMIT/
 .play upyun/kill_http.go /fmt.Println/,/fmt.Println/
 [[http://10.0.0.193:3100/ui][Upone]]
+[[https://upyun-alert.slack.com/messages/C6MGAMK3Q/][slack]]
 
 
 * Test http
@@ -50,8 +65,9 @@
 * Kill it
 
 .code -edit upyun/kill_tcp.go /START OMIT/,/END OMIT/
-.play upyun/tcp.go /fmt.Println/,/fmt.Println/
+.play upyun/kill_tcp.go /fmt.Println/,/fmt.Println/
 [[http://10.0.0.193:3100/ui][Upone]]
+[[https://upyun-alert.slack.com/messages/C6MGAMK3Q/][slack]]
 
 * Test tcp
 
@@ -59,9 +75,23 @@
 .play upyun/tcp.go /fmt.Println/
 
 
-* 负载均衡介绍
+* 进一步
 
-slardar 代理
+如果服务不需要对外提供访问, 那么到这里已经提供了一个完整的部署方案
+
+但刚刚介绍的两种对外服务, 它们部署在集群的哪台机器, 占用哪个端口是不确定的
+
+那么服务的访问者如何接入?
+
+
+* 代理
+
+基于 *ngx_lua* 的动态负载均衡方案： *Slardar*
+
+.image upone/slardar.png _ 1000
+
+
+* 例子
 
     # 应用开发的 docker 集群代理
     # @see http://gitlab.widget-inc.com/consumers/upone-cli/wikis/zones#dev
@@ -93,20 +123,6 @@ slardar 代理
 [[http://10.0.0.193:1995/status][Slardar]]
 
 
-* 告警
-
-各个服务可以在创建任务的时候指定自己的 slack channel
-
-当任务出现异常时, 发送实时通知
-
-.image upone/slack.png _ 700
-
-
-* 告警
-
-.image upone/alarm.png _ 700
-
-
 * Upone 原理简介
 
 
@@ -116,14 +132,14 @@ slardar 代理
 
 官方称之为分布式系统内核, 它把数据中心的 CPU、内存、磁盘等抽象成一个资源池
 
-[[http://10.0.0.193:5050][Mesos]]
+[[http://192.168.14.126:5050/#/][Mesos]]
 
 
 * 处理流程
 
 .image upone/mesos-seq-diagram.png _ 800
 .caption Image credit: [[https://dcos.io/docs/1.7/overview/architecture/][dcos architecture]]
-
+[[http://192.168.14.126:5050/#/][Mesos]]
 
 * Raft
 
@@ -136,16 +152,22 @@ slardar 代理
 
 .image upone/consul.png _ 600
 
-- upone 动态加载属性
+- 推荐: 服务配置统一管理
+- upone 动态加载配置
 - 注册服务
-- 应用配置统一管理
 
 [[http://10.0.5.108:8500][Consul]]
+
+* 环境变量
+
+.code -edit upyun/env.go /START OMIT/,/END OMIT/
+.play upyun/env.go /fmt.Println/
+
 
 * Upone 定时任务
 
 .image upone/crontab.jpg _ 600
 
-[[http://10.0.0.193:3100/ui][Upone]]
-[[http://10.0.0.193:5050][Mesos]]
+[[http://upone.s.upyun.com][Upone]]
+[[http://192.168.14.126:5050/#/][Mesos]]
 
