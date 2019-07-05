@@ -1,0 +1,188 @@
+Openresty 在又拍云存储中的应用
+July 5, 2019
+
+
+黄励博(huangnauh)
+又拍云系统开发高级工程师
+ihuangnauh@gmail.com
+https://github.com/huangnauh
+
+
+* 分布式存储特点:
+
+- 高可用
+多个无状态代理 分布式数据节点
+
+- 易扩展
+有简单的办法应对系统的增长
+
+- 易维护
+在各个服务的不同生命周期， 都能方便地进行各项调整
+
+
+* 推荐
+.image avalon/ddia.jpg _ 400
+.caption 设计数据密集型应用
+
+
+* 存储数据I : 拆分
+
+* 分区
+
+将大型的数据拆分成较小的子集
+- 按 key 顺序，方便 Range 操作
+- 按 key hash，分散访问
+
+.image avalon/partition-key.png _ 1000
+
+
+* 又拍云存储系统
+
+由 Openresty 完成数据拆分
+.image avalon/openresty.png _ 1000
+
+
+* 索引和内容拆分
+
+文件路径(key) 与 用户数据(value) 解耦
+
+.image avalon/uri-uuid.png _ 800
+
+防止热点数据， 多数 LSM tree 文件的组织形式是分层有序
+
+
+* 索引和内容拆分
+.image avalon/partition-meta.png _ 600
+Meta 集群依然会有热点， 但是由于 value 小， 容易 balance
+Block 集群的 key 和文件路径无关
+
+* 内容内部拆分
+
+.image avalon/partition-block.png _ 500
+
+目的1: 一个大文件可以对应多个 Value，分布不同节点和磁盘， 负荷分担
+目的2： 方便一些不支持 Range 操作的 Block 集群
+
+
+* 拆分
+
+- 第一次拆分， 文件路径(uri) 对应多个 Meta 集群，固定分区
+- 第二次拆分， 一个 Meta 集群对应多个 Block 集群
+- 第三次拆分， Meta 和 Block 子系统内部分区，节点+磁盘
+
+* 存储数据II : 路由
+
+.image avalon/route.png _ 1000
+.caption DDIA 第六章截图
+
+* Openresty 作为路由层
+
+.image avalon/route-file.png _ 600
+
+* Meta 集群路由: 固定路由
+- 不同的用户或者空间
+- 不同存储类型
+- 不同的索引功能
+
+* Meta 路由应用: 目录
+
+.image avalon/route-folder.png _ 600
+
+
+* Meta 路由应用: 文件按时间过滤
+
+.image avalon/route-time.png _ 600
+
+
+* Block 集群路由: 固定或动态路由
+- 和 Meta 集群相同， 按用户空间/存储类型划分，固定分区
+- 负载均衡，多个同一类型的 Block 集群， 按 weight 划分
+- 迁移/备份到第三方服务
+
+* 路由
+
+[[https://github.com/upyun/lua-resty-checkups][lua-resty-checkups]]
+
+.image avalon/router.png _ 600
+
+* 路由规则配置：
+
+.image avalon/route-config.png _ 600
+
+- 定时更新 + 缓存
+
+- 联动更新
+
+配置相关功能采用了 [[https://github.com/upyun/slardar/][Slardar]] 的相关模块
+
+
+* 存储数据III: 常用功能
+
+HEAD 只需要 Openresty 路由到 Meta 系统
+
+.image avalon/HEAD-method.png _ 600
+
+* 存储数据III: 常用功能
+DELETE 删除 Meta， GC 负责异步删除 Block
+.image avalon/DELETE-method.png _ 600
+
+* 存储数据III: 常用功能
+
+.image avalon/other-method.png _ 300
+
+* 存储数据IV: 扩容
+- Meta 集群, 扩容 balance 速度快
+- Block 集群, 扩容尽量避免大量文件 balance
+
+* 扩容策略
+- 新增 Meta 节点， 集群内 balance
+- 拆分 Meta 集群， 两个集群间同步
+- 新增 Block 集群， 提高 weight，直到旧集群变为只读集群，避免 Block 集群 balance
+
+扩容之后的操作和集群的管理都是通过 [[https://github.com/upyun/lua-resty-checkups][lua-resty-checkups]] 来完成
+
+
+* 存储数据: 其他
+
+复制：由各个子系统独立完成
+
+- Meta 集群： Hbase, Postgresql/Mysql
+- Meta 备份：数据导出到 kafka
+- Block 集群： EC 存储， 多副本存储， 单副本存储等
+
+* 存储数据: 其他
+
+事务：
+
+- 单对象写入
+
+以最后写入 Meta 集群为准 (Last Write Win)
+
+没有写入 Meta 的数据，都会被 GC 回收
+
+Meta 集群支持单对象 CAS(compare-and-set）操作
+
+- 不支持多对象写入
+
+- 限制同一 uri 的重复上传和并发上传
+
+其中 Openresty 的限制模块 可以参考 [[https://github.com/openresty/lua-resty-limit-traffic][openresty/lua-resty-limit-traffic]]， upyun 在此基础上增加了 [[https://github.com/upyun/lua-resty-limit-rate][token bucket]] 的方法
+
+
+* 分布式存储之外:
+.image avalon/others.png _ 400
+
+* 断点续传
+
+- 不是所有 Block 系统都支持续传功能
+- 续传的每一块文件在 Block 系统都是一个新文件
+- 访问的时候，在 Openresty 中把它拼接起来
+
+
+* 又拍云存储系统
+.image avalon/architecture.png _ 1000
+
+* Openresty 相关
+[1] [[https://github.com/upyun/slardar][upyun/slardar]]
+[2] [[https://github.com/upyun/lua-resty-checkups][upyun/lua-resty-checkups]]
+[3] [[https://github.com/upyun/lua-resty-limit-rate][upyun/lua-resty-limit-rate]]
